@@ -52,7 +52,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     <Box sx={{ flexGrow: 1 }}>
       <AppBar position="static">
         <Toolbar>
-          <IconButton
+          {/* <IconButton
             size="large"
             edge="start"
             color="inherit"
@@ -60,18 +60,18 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             sx={{ mr: 2 }}
           >
             <MenuIcon />
-          </IconButton>
+          </IconButton> */}
           <Typography variant="h6" component="div" sx={{ flexGrow: 1, cursor: 'pointer' }} onClick={() => navigate('/home')}>
-            Gym App
+            AI-powered CV Suggestion
           </Typography>
           {isAuthenticated ? (
             <>
-              <Button color="inherit" onClick={() => navigate('/dashboard')}>
+              {/* <Button color="inherit" onClick={() => navigate('/dashboard')}>
                 Dashboard
-              </Button>
-              <Button color="inherit" onClick={() => navigate('/workouts')}>
+              </Button> */}
+              {/* <Button color="inherit" onClick={() => navigate('/workouts')}>
                 Workouts
-              </Button>
+              </Button> */}
               <Button color="inherit" onClick={handleLogout}>
                 Logout
               </Button>
