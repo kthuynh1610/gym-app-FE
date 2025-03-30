@@ -14,8 +14,16 @@ import {
     MenuItem,
     SelectChangeEvent,
     Snackbar,
+    LinearProgress,
     Alert
 } from '@mui/material';
+import { Viewer, Worker } from "@react-pdf-viewer/core";
+import "@react-pdf-viewer/core/lib/styles/index.css";
+import Mammoth from "mammoth";
+import ReactMarkdown from "react-markdown"
+import * as pdfjsLib from "pdfjs-dist";
+import "pdfjs-dist/build/pdf.worker.entry";
+import remarkGfm from "remark-gfm";
 import { useNavigate } from 'react-router-dom';
 import TDEECalculator from '../ui components/tdeeCalculator';
 import { useSelector, useDispatch } from 'react-redux';
@@ -64,54 +72,59 @@ const Homepage: React.FC = (): React.ReactElement => {
     const user = useSelector((state: RootState) => state.auth.user);
     const dispatch = useDispatch();
     const [result, setResult] = useState<ResultData>();
-
+    const [filePreview, setFilePreview] = useState<string | null>(null);
+    const [fullText, setFullText] = useState<string | null>(null);
+    const [showFullText, setShowFullText] = useState(false);
+    const [progress, setProgress] = useState<number>(0);
+    const [statusText, setStatusText] = useState<string>("");
     const [file, setFile] = useState<File | null>(null);
     const [fileName, setFileName] = useState("");
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
-            setFile(event.target.files[0]);
+            const selectedFile = event.target.files[0];
+            setFile(selectedFile);
+
+            if (selectedFile.type === "application/pdf") {
+                // PDF Preview (Multi-Page Support)
+                const pdfUrl = URL.createObjectURL(selectedFile);
+                setFilePreview(pdfUrl);
+            } else if (selectedFile.name.endsWith(".docx")) {
+                // DOCX Preview (Extract Full Text)
+                const reader = new FileReader();
+                reader.readAsArrayBuffer(selectedFile);
+                reader.onload = async (e) => {
+                    if (e.target?.result) {
+                        const extractedText = await Mammoth.extractRawText({ arrayBuffer: e.target.result as ArrayBuffer });
+                        setFullText(extractedText.value);
+                        setFilePreview(extractedText.value.substring(0, 1000) + "..."); // Show first 1000 characters
+                    }
+                };
+            } else {
+                setFilePreview(null);
+            }
         }
     };
 
-    // const handleUpload = async () => {
-    //     if (!file) return alert("Please select a file");
-
-    //     const formData = new FormData();
-    //     formData.append("file", file);
-
-    //     try {
-    //         const response = await fetch("http://localhost:3001/api/upload", {
-    //             method: "POST",
-    //             body: formData,
-    //         });
-            
-    //         const data = await response.json();
-    //         if (response.ok) {
-    //             setFileName(data.fileName);
-    //             alert("✅ File uploaded successfully!");
-    //         } else {
-    //             alert("❌ Upload failed: " + data.error);
-    //         }
-    //     } catch (error) {
-    //         console.error("Upload error:", error);
-    //     }
-    // };
-
     const UploadToDynamoDB = async () => {
         if (!file) return alert("Please select a file");
-    
+        setProgress(25);
+        setStatusText('Waiting for CV Analysis...');
         setLoading(true); // Start loading
         const formData = new FormData();
         formData.append("file", file);
     
         try {
+            setProgress(50);
+            setStatusText('Start analyzing CV...');
             const response = await fetch('http://localhost:3001/api/getSuggestion', {
                 method: 'POST',
                 body: formData
             });
     
             const data = await response.json();
+            setProgress(60);
+            setStatusText("🤖 Generating CV Suggestions...");
             if (response.ok) {
                 setResult(data);
                 setSnackbar({ open: true, message: 'Successfully retrieved suggestions!', severity: 'success' });
@@ -119,10 +132,15 @@ const Homepage: React.FC = (): React.ReactElement => {
                 setSnackbar({ open: true, message: 'Error retrieving suggestions', severity: 'error' });
             }
         } catch (error) {
+            setProgress(0);
+            setStatusText('Error... please try again');
             console.error('Error:', error);
             setSnackbar({ open: true, message: 'An error occurred', severity: 'error' });
         } finally {
             setLoading(false); // End loading
+            setProgress(100);
+            setStatusText("Finished...");
+            setTimeout(() => setLoading(false), 1000);
         }
         
     };
@@ -132,7 +150,7 @@ const Homepage: React.FC = (): React.ReactElement => {
     
 
     return (
-        <Container maxWidth="lg">
+        <Container sx={{maxWidth:"1000px"}}>
             <Box
                 sx={{
                     my: 4,
@@ -154,16 +172,49 @@ const Homepage: React.FC = (): React.ReactElement => {
                 </label>
 
                 {file && <Typography variant="body1">📄 Selected: {file.name}</Typography>}
-
+                {filePreview && (
+                    <Paper sx={{ mt: 2, p: 2, width: "100%", maxHeight: "800px", overflow: "auto", backgroundColor: "#f5f5f5" }}>
+                        {file?.type === "application/pdf" ? (
+                            <Worker workerUrl="https://unpkg.com/pdfjs-dist@2.6.347/build/pdf.worker.min.js">
+                                <Viewer fileUrl={filePreview} />
+                            </Worker>
+                        ) : (
+                            <>
+                                <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+                                    {showFullText ? fullText : filePreview}
+                                </Typography>
+                                {fullText && fullText.length > 1000 && (
+                                    <Button variant="text" onClick={() => setShowFullText(!showFullText)}>
+                                        {showFullText ? "Show Less" : "Show More"}
+                                    </Button>
+                                )}
+                            </>
+                        )}
+                    </Paper>
+                )}    
                 {/* <Button variant="contained" color="primary" onClick={handleUpload} disabled={!file || loading}>
                     {loading ? <CircularProgress size={24} /> : "Upload"}
                 </Button> */}
-               <Button variant='contained' onClick={UploadToDynamoDB} disabled={loading}>
-                {loading ? <CircularProgress size={24} /> : "Get Suggestion"} 
-                </Button>
+                {
+                    file ? <Button variant='contained' sx={{mt:1}} onClick={UploadToDynamoDB} disabled={loading}>
+                    {loading ? <CircularProgress size={24} /> : "Get Suggestion"} 
+                    </Button> : null
+                }
+               
+                {loading && (
+                    <Box sx={{ width: "80%", mt: 2 }}>
+                        <Typography variant="body2" align="center">{statusText}</Typography>
+                        <LinearProgress variant="determinate" value={progress} sx={{ height: 10, borderRadius: 5 }} />
+                    </Box>
+                )}
                 
                 {result&&<Box sx={{width:'100%'}}>
-                <Typography variant="body1">Message: {JSON.stringify(result.data.suggestions)}</Typography>
+                <Typography variant="body1">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {result?.data.suggestions}
+                    </ReactMarkdown>
+                </Typography>
+                            
                 </Box>}
             </Box>
             <Snackbar
