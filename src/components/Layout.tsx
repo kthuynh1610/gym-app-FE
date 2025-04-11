@@ -16,6 +16,7 @@ import { logout } from '../store/slices/authSlice';
 import authService from '../services/authService';
 import { auth } from '../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
+import ArticleIcon from '@mui/icons-material/Article';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
@@ -61,7 +62,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           >
             <MenuIcon />
           </IconButton> */}
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1, cursor: 'pointer' }} onClick={() => navigate('/home')}>
+          <ArticleIcon/>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1, cursor: 'pointer', ml:1   }} onClick={() => navigate('/home')}>
             AI-powered CV Suggestion
           </Typography>
           {isAuthenticated ? (
@@ -72,9 +74,12 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               {/* <Button color="inherit" onClick={() => navigate('/workouts')}>
                 Workouts
               </Button> */}
-              <Button color="inherit" onClick={handleLogout}>
-                Logout
-              </Button>
+               <Box sx={{display:'flex', justifyContent:'flex-end'}}>
+               <Typography sx={{ flexGrow: 1, cursor: 'pointer'}} onClick={handleLogout}>
+                LOG OUT
+              </Typography>
+               </Box>
+              
             </>
           ) : (
             <>
