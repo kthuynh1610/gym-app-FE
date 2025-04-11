@@ -3,13 +3,14 @@ import authReducer from './slices/authSlice';
 import gymReducer from './slices/gymSlice';
 import tdeeReducer from './slices/tdeeSlice';
 import workoutReducer from './slices/workoutSlice';
-
+import cvReducer from './slices/fileCVSlice';
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     gym: gymReducer,
     tdee: tdeeReducer,
     workouts: workoutReducer,
+    CV: cvReducer
   },
 });
 
